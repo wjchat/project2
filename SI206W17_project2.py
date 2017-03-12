@@ -37,11 +37,12 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 ## Part 0 -- CACHING SETUP
 
 ## Write the code to begin your caching pattern setup here.
-CACHE_FNAME = "project2cache.json"
+CACHE_FNAME = "206project2_caching.json"
 try:
 	cache_file_obj = open(CACHE_FNAME,'r') 
 	cache_contents = cache_file_obj.read() 
-	CACHE_DICTION = json.loads(cache_contents)                                                                       
+	CACHE_DICTION = json.loads(cache_contents)  
+	cache_file_obj.close()                                                                     
 
 except:
 	CACHE_DICTION = {} 
@@ -78,24 +79,48 @@ def find_urls(strang):
 ## Start with this page: https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All  
 ## End with this page: https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All&page=11 
 
-def get_usmi_data():
-	if CACHE_DICTION:
-		return CACHE_DICTION
-	else: 
-		pages = []
-		pages.append(requests.get('https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All', headers={'User-Agent': 'SI_CLASS'}))
-		for x in range(1, 11):
-			pages.append(requests.get('https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All&page=' + x, headers={'User-Agent': 'SI_CLASS'}))
-		print(pages)
-		return pages
+def get_umsi_data():
+	unique_identifier = 'umsi_directory_data'
+	if unique_identifier in CACHE_DICTION:
+		print('using cached data')
+		return CACHE_DICTION[unique_identifier] #checks for cached data
 
-
-
-
+	else:
+		print('retriving data')
+		si_pages = []
+		url = 'https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All&page='
+		for x in range(0, 12):
+			page_html =requests.get(url + str(x), headers={'User-Agent': 'SI_CLASS'}) #iterates thru pages
+			html = page_html.text
+			si_pages.append(html) #appends page data to list
+		CACHE_DICTION['umsi_directory_data'] = si_pages
+		f = open(CACHE_FNAME, 'w') #opens file for writing
+		f.write(json.dumps(CACHE_DICTION))
+		f.close()
+	return CACHE_DICTION[unique_identifier]
 
 
 ## PART 2 (b) - Create a dictionary saved in a variable umsi_titles 
 ## whose keys are UMSI people's names, and whose associated values are those people's titles, e.g. "PhD student" or "Associate Professor of Information"...
+
+umsi_titles = {}
+list_of_directories = get_umsi_data()
+people = []
+name_list = []
+title_list = []
+for item in list_of_directories:
+	soup = BeautifulSoup(item, 'html.parser')
+	people = soup.find_all('div',{'class':'views-row'}) #iterates thru all of the people
+	
+	for section in people:
+		name_list.append(section.find('div',{'property':'dc:title'}).text) #writes list of names
+		title_list.append(section.find('div',{'class':'field-name-field-person-titles'}).text) #writes list of titles
+for x in range(len(name_list)):
+	umsi_titles[name_list[x]] = title_list[x] #appends dictionary with appropriate titles/names
+
+
+
+
 
 
 
@@ -108,15 +133,51 @@ def get_usmi_data():
 ## Behavior: See instructions. Should search for the input string on twitter and get results. Should check for cached data, use it if possible, and if not, cache the data retrieved.
 ## RETURN VALUE: A list of strings: A list of just the text of 5 different tweets that result from the search.
 
+def get_five_tweets(any_string):
+	unique_identifier = 'twitter_'+any_string #creates flexible unique identifier depending on search query
+
+	if unique_identifier in CACHE_DICTION:
+		print('using cached data for', unique_identifier)
+
+	else:
+		print('getting new data from the web')
+
+		search_results = api.search(q = any_string)
+
+		CACHE_DICTION[unique_identifier] = search_results		#cache pattern
+
+		f = open(CACHE_FNAME, 'w', encoding = "utf-8")
+		f.write(json.dumps(CACHE_DICTION))
+		f.close()
+
+	searcher = CACHE_DICTION[unique_identifier] #puts returned list into variable searcher
+
+	five_tweets = []
+
+	for item in searcher['statuses'][:5]:		#iterates thru statuses of first five tweets
+		five_tweets.append(item['text'])		#appends text of statuses to list
+
+	return five_tweets 	#returns list of tweets
+ 
+
+	
+
 
 
 
 ## PART 3 (b) - Write one line of code to invoke the get_five_tweets function with the phrase "University of Michigan" and save the result in a variable five_tweets.
 
+five_tweets = get_five_tweets('University of Michigan')
 
 
 
 ## PART 3 (c) - Iterate over the five_tweets list, invoke the find_urls function that you defined in Part 1 on each element of the list, and accumulate a new list of each of the total URLs in all five of those tweets in a variable called tweet_urls_found. 
+tweet_urls_found = []
+for tweet in five_tweets:
+	urls = find_urls(tweet)
+	for url in urls:
+		tweet_urls_found.append(url)
+	
 
 
 
