@@ -1,7 +1,7 @@
 ## SI 206 W17 - Project 2 
 
 ## COMMENT HERE WITH:
-## Your name:
+## Your name: BJ Chatterson
 ## Anyone you worked with on this project:
 
 ## Below we have provided import statements, comments to separate out the parts of the project, instructions/hints/examples, and at the end, tests. See the PDF of instructions for more detail. 
@@ -14,15 +14,20 @@ import unittest
 import json
 import requests
 import tweepy
-import twitter_info # Requires you to have a twitter_info file in this directory
 from bs4 import BeautifulSoup
+import sys #solves weird character problem i often get
+import keys #imports my twitter key information instead of twitter_info
+import codecs
+import re
+
+sys.stdout = codecs.getwriter('utf8')(sys.stdout.buffer)
 
 ## Tweepy authentication setup
 ## Fill these in in the twitter_info.py file
-consumer_key = twitter_info.consumer_key
-consumer_secret = twitter_info.consumer_secret
-access_token = twitter_info.access_token
-access_token_secret = twitter_info.access_token_secret
+consumer_key = keys.consumer_key
+consumer_secret = keys.consumer_secret
+access_token = keys.access_token
+access_token_secret =keys.access_token_secret
 auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
 auth.set_access_token(access_token, access_token_secret)
 
@@ -32,7 +37,14 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 ## Part 0 -- CACHING SETUP
 
 ## Write the code to begin your caching pattern setup here.
+CACHE_FNAME = "project2cache.json"
+try:
+	cache_file_obj = open(CACHE_FNAME,'r') 
+	cache_contents = cache_file_obj.read() 
+	CACHE_DICTION = json.loads(cache_contents)                                                                       
 
+except:
+	CACHE_DICTION = {} 
 
 
 
@@ -40,11 +52,16 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 ## INPUT: any string
 ## RETURN VALUE: a list of strings that represents all of the URLs in the input string
 
+
+
 ## For example: 
 ## find_urls("http://www.google.com is a great site") should return ["http://www.google.com"]
 ## find_urls("I love looking at websites like http://etsy.com and http://instagram.com and stuff") should return ["http://etsy.com","http://instagram.com"]
 ## find_urls("the internet is awesome #worldwideweb") should return [], empty list
 
+def find_urls(strang):
+	list_of_strangs = re.findall('http\D?://\w+\.?[a-zA-Z\.]+\w{2,}', strang)
+	return list_of_strangs
 
 
 
@@ -61,6 +78,16 @@ api = tweepy.API(auth, parser=tweepy.parsers.JSONParser())
 ## Start with this page: https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All  
 ## End with this page: https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All&page=11 
 
+def get_usmi_data():
+	if CACHE_DICTION:
+		return CACHE_DICTION
+	else: 
+		pages = []
+		pages.append(requests.get('https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All', headers={'User-Agent': 'SI_CLASS'}))
+		for x in range(1, 11):
+			pages.append(requests.get('https://www.si.umich.edu/directory?field_person_firstname_value=&field_person_lastname_value=&rid=All&page=' + x, headers={'User-Agent': 'SI_CLASS'}))
+		print(pages)
+		return pages
 
 
 
